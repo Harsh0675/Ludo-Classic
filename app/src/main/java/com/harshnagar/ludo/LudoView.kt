@@ -29,9 +29,7 @@ class LudoView(context: Context) : View(context) {
 
     private val players = PlayerColor.values().map { Player(it) }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans", Typeface.BOLD)
-    }
+    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.create("sans", Typeface.BOLD) }
 
     private var turn = 0
     private var dice = 0
@@ -72,7 +70,6 @@ class LudoView(context: Context) : View(context) {
         boardTop = h * 0.125f
         cell = boardSize / 15f
         controlsTop = min(boardTop + boardSize + 26f, h - 190f)
-
         drawBackground(c, w, h)
         drawHeader(c, w)
         drawPlayerPanels(c, w)
@@ -82,10 +79,7 @@ class LudoView(context: Context) : View(context) {
     }
 
     private fun drawBackground(c: Canvas, w: Float, h: Float) {
-        paint.shader = LinearGradient(
-            0f, 0f, 0f, h,
-            Color.rgb(7, 70, 132), Color.rgb(2, 25, 58), Shader.TileMode.CLAMP
-        )
+        paint.shader = LinearGradient(0f, 0f, 0f, h, Color.rgb(7, 70, 132), Color.rgb(2, 25, 58), Shader.TileMode.CLAMP)
         c.drawRect(0f, 0f, w, h, paint)
         paint.shader = null
     }
@@ -123,17 +117,14 @@ class LudoView(context: Context) : View(context) {
         c.drawRoundRect(boardLeft + 4f, boardTop + 6f, boardLeft + boardSize + 4f, boardTop + boardSize + 6f, 8f, 8f, paint)
         paint.color = Color.WHITE
         c.drawRect(boardLeft, boardTop, boardLeft + boardSize, boardTop + boardSize, paint)
-
         drawHome(c, 0, 0, PlayerColor.YELLOW)
         drawHome(c, 9, 0, PlayerColor.BLUE)
         drawHome(c, 0, 9, PlayerColor.GREEN)
         drawHome(c, 9, 9, PlayerColor.RED)
-
         drawLane(c, PlayerColor.YELLOW, 6, 1, 1, 5)
         drawLane(c, PlayerColor.BLUE, 9, 6, 5, 1)
         drawLane(c, PlayerColor.RED, 8, 9, 1, 5)
         drawLane(c, PlayerColor.GREEN, 1, 8, 5, 1)
-
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = maxOf(1f, cell * 0.012f)
         paint.color = Color.rgb(190, 195, 200)
@@ -143,14 +134,12 @@ class LudoView(context: Context) : View(context) {
             c.drawRect(x, y, x + cell, y + cell, paint)
         }
         paint.style = Paint.Style.FILL
-
         val cx = boardLeft + 7.5f * cell
         val cy = boardTop + 7.5f * cell
         triangle(c, cx, cy, 6f, 6f, 9f, 6f, PlayerColor.YELLOW.main)
         triangle(c, cx, cy, 9f, 6f, 9f, 9f, PlayerColor.RED.main)
         triangle(c, cx, cy, 9f, 9f, 6f, 9f, PlayerColor.GREEN.main)
         triangle(c, cx, cy, 6f, 9f, 6f, 6f, PlayerColor.BLUE.main)
-
         for (index in safeSquares) {
             val q = route[index]
             drawStar(c, boardLeft + (q[1] + 0.5f) * cell, boardTop + (q[0] + 0.5f) * cell, cell * 0.19f)
@@ -162,11 +151,7 @@ class LudoView(context: Context) : View(context) {
         paint.color = color.main
         c.drawRect(boardLeft + col * cell, boardTop + row * cell, boardLeft + (col + 6) * cell, boardTop + (row + 6) * cell, paint)
         paint.color = Color.WHITE
-        c.drawRoundRect(
-            boardLeft + (col + 0.95f) * cell, boardTop + (row + 0.95f) * cell,
-            boardLeft + (col + 5.05f) * cell, boardTop + (row + 5.05f) * cell,
-            cell * 0.28f, cell * 0.28f, paint
-        )
+        c.drawRoundRect(boardLeft + (col + 0.95f) * cell, boardTop + (row + 0.95f) * cell, boardLeft + (col + 5.05f) * cell, boardTop + (row + 5.05f) * cell, cell * 0.28f, cell * 0.28f, paint)
         val spots = arrayOf(1.7f to 1.7f, 4.3f to 1.7f, 1.7f to 4.3f, 4.3f to 4.3f)
         paint.color = Color.argb(28, 0, 0, 0)
         for ((x, y) in spots) c.drawCircle(boardLeft + (col + x) * cell + 2f, boardTop + (row + y) * cell + 3f, cell * 0.35f, paint)
@@ -176,9 +161,7 @@ class LudoView(context: Context) : View(context) {
         paint.color = color.main
         c.drawRect(boardLeft + col * cell, boardTop + row * cell, boardLeft + (col + widthCells) * cell, boardTop + (row + heightCells) * cell, paint)
         paint.color = Color.argb(55, 255, 255, 255)
-        for (r in 0 until heightCells) for (x in 0 until widthCells) {
-            c.drawRect(boardLeft + (col + x) * cell, boardTop + (row + r) * cell, boardLeft + (col + x + 1) * cell, boardTop + (row + r + 1) * cell, paint)
-        }
+        for (r in 0 until heightCells) for (x in 0 until widthCells) c.drawRect(boardLeft + (col + x) * cell, boardTop + (row + r) * cell, boardLeft + (col + x + 1) * cell, boardTop + (row + r + 1) * cell, paint)
     }
 
     private fun triangle(c: Canvas, cx: Float, cy: Float, x1: Float, y1: Float, x2: Float, y2: Float, color: Int) {
@@ -250,17 +233,10 @@ class LudoView(context: Context) : View(context) {
         c.drawCircle(x, y, cell * 0.245f, paint)
         paint.color = Color.WHITE
         c.drawCircle(x, y - cell * 0.08f, cell * 0.065f, paint)
-        if (selected) {
+        if (selected || (state == State.MOVING && turn == 0 && index == movingToken && color == PlayerColor.GREEN)) {
             paint.color = Color.WHITE
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = maxOf(2f, cell * 0.035f)
-            c.drawCircle(x, y, cell * 0.40f, paint)
-            paint.style = Paint.Style.FILL
-        }
-        if (state == State.MOVING && turn == 0 && index == movingToken && color == PlayerColor.GREEN) {
-            paint.color = Color.WHITE
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 3f
             c.drawCircle(x, y, cell * 0.40f, paint)
             paint.style = Paint.Style.FILL
         }
@@ -268,13 +244,11 @@ class LudoView(context: Context) : View(context) {
 
     private fun drawControls(c: Canvas, w: Float, h: Float) {
         val panelH = min(74f, h * 0.065f)
-        val gap = 10f
         val left = 14f
         val right = w - 14f
         val diceLeft = w * 0.43f
         val buttonLeft = w * 0.70f
         val y = controlsTop
-
         paint.color = Color.argb(45, 0, 0, 0)
         c.drawRoundRect(left, y + 4f, w * 0.39f, y + panelH + 4f, 16f, 16f, paint)
         paint.color = players[turn].color.main
@@ -285,30 +259,25 @@ class LudoView(context: Context) : View(context) {
         c.drawText(if (turn == 0) "YOU" else players[turn].color.title.uppercase(), left + 16f, y + 25f, text)
         text.textSize = 10f
         c.drawText(if (turn == 0) "Your turn" else "Computer turn", left + 16f, y + 48f, text)
-
         paint.color = Color.WHITE
         c.drawRoundRect(diceLeft, y, w * 0.67f, y + panelH, 16f, 16f, paint)
         drawDice(c, (diceLeft + w * 0.67f) / 2f, y + panelH / 2f, dice)
-
         paint.color = if (state == State.WAIT_ROLL && turn == 0) Color.rgb(17, 119, 214) else Color.rgb(95, 113, 130)
         c.drawRoundRect(buttonLeft, y, right, y + panelH, 16f, 16f, paint)
         text.textAlign = Paint.Align.CENTER
         text.textSize = 12f
         text.color = Color.WHITE
-        val buttonLabel = when (state) {
+        val label = when (state) {
             State.WAIT_ROLL -> if (turn == 0) "ROLL DICE" else "WAIT"
             State.SELECT_TOKEN -> "SELECT TOKEN"
             State.MOVING -> "MOVING…"
             State.AI_THINK -> "THINKING…"
             State.GAME_OVER -> "PLAY AGAIN"
         }
-        c.drawText(buttonLabel, (buttonLeft + right) / 2f, y + panelH * 0.61f, text)
-
+        c.drawText(label, (buttonLeft + right) / 2f, y + panelH * 0.61f, text)
         if (state != State.GAME_OVER) {
-            text.textAlign = Paint.Align.CENTER
             text.textSize = 11f
-            text.color = Color.WHITE
-            c.drawText(message, w / 2f, y + panelH + gap + 17f, text)
+            c.drawText(message, w / 2f, y + panelH + 27f, text)
         }
     }
 
@@ -360,21 +329,18 @@ class LudoView(context: Context) : View(context) {
         if (event.action != MotionEvent.ACTION_UP) return true
         val x = event.x
         val y = event.y
-
         if (state == State.GAME_OVER) {
             reset()
             invalidate()
             return true
         }
         if (turn != 0 || state == State.MOVING || state == State.AI_THINK) return true
-
         val diceLeft = width * 0.43f
         val diceRight = width * 0.67f
         if (state == State.WAIT_ROLL && x in diceLeft..diceRight && y in controlsTop..(controlsTop + 100f)) {
             rollHumanDice()
             return true
         }
-
         if (state == State.SELECT_TOKEN) {
             for (index in 0..3) {
                 val point = tokenPoint(PlayerColor.GREEN, players[0].tokens[index].progress, index) ?: continue
@@ -393,15 +359,12 @@ class LudoView(context: Context) : View(context) {
         if (state != State.WAIT_ROLL || turn != 0) return
         dice = Random.nextInt(1, 7)
         val legal = legalMoves()
+        state = State.SELECT_TOKEN
         if (legal.isEmpty()) {
-            state = State.SELECT_TOKEN
             message = "No legal move • Passing turn"
             invalidate()
-            postDelayed({
-                if (state == State.SELECT_TOKEN && turn == 0) finishTurn()
-            }, 700L)
+            postDelayed({ if (state == State.SELECT_TOKEN && turn == 0) finishTurn() }, 700L)
         } else {
-            state = State.SELECT_TOKEN
             message = if (dice == 6) "You rolled 6 • Choose a token" else "Choose a highlighted token"
             invalidate()
         }
@@ -441,14 +404,10 @@ class LudoView(context: Context) : View(context) {
     private fun animateStep(playerIndex: Int, tokenIndex: Int) {
         if (state != State.MOVING || playerIndex != turn) return
         val token = players[playerIndex].tokens[tokenIndex]
-        val next = if (token.progress < 0) 0 else token.progress + 1
-        token.progress = next
+        token.progress = if (token.progress < 0) 0 else token.progress + 1
         invalidate()
-        if (next >= moveTarget) {
-            postDelayed({ completeMove(playerIndex, tokenIndex) }, 90L)
-        } else {
-            postDelayed({ animateStep(playerIndex, tokenIndex) }, 105L)
-        }
+        if (token.progress >= moveTarget) postDelayed({ completeMove(playerIndex, tokenIndex) }, 90L)
+        else postDelayed({ animateStep(playerIndex, tokenIndex) }, 105L)
     }
 
     private fun completeMove(playerIndex: Int, tokenIndex: Int) {
@@ -457,7 +416,6 @@ class LudoView(context: Context) : View(context) {
         captureOpponents(player, player.tokens[tokenIndex])
         movingToken = -1
         moveTarget = -1
-
         if (player.tokens.all { it.progress == 56 }) {
             winner = playerIndex
             state = State.GAME_OVER
@@ -466,7 +424,6 @@ class LudoView(context: Context) : View(context) {
             invalidate()
             return
         }
-
         val rolledSix = dice == 6
         dice = 0
         if (rolledSix) {
@@ -483,12 +440,9 @@ class LudoView(context: Context) : View(context) {
         if (movingToken.progress !in 0..51) return
         val target = (player.color.start + movingToken.progress) % 52
         if (target in safeSquares) return
-        for (other in players) {
-            if (other.color == player.color) continue
+        for (other in players) if (other.color != player.color) {
             for (token in other.tokens) {
-                if (token.progress in 0..51 && (other.color.start + token.progress) % 52 == target) {
-                    token.progress = -1
-                }
+                if (token.progress in 0..51 && (other.color.start + token.progress) % 52 == target) token.progress = -1
             }
         }
     }
@@ -524,9 +478,7 @@ class LudoView(context: Context) : View(context) {
         val chosen = legal.maxByOrNull { scoreMove(player, it) } ?: legal.first()
         message = "${player.color.title} rolled $dice"
         invalidate()
-        postDelayed({
-            if (state == State.AI_THINK && turn != 0) startMove(turn, chosen)
-        }, 550L)
+        postDelayed({ if (state == State.AI_THINK && turn != 0) startMove(turn, chosen) }, 550L)
     }
 
     private fun scoreMove(player: Player, index: Int): Int {
@@ -536,17 +488,14 @@ class LudoView(context: Context) : View(context) {
         if (token.progress < 0 && dice == 6) score += 800
         if (token.progress in 0..51 && token.progress + dice <= 51) {
             val target = (player.color.start + token.progress + dice) % 52
-            if (target !in safeSquares) {
-                for (other in players) if (other.color != player.color) {
-                    if (other.tokens.any { it.progress in 0..51 && (other.color.start + it.progress) % 52 == target }) score += 1400
-                }
+            if (target !in safeSquares) for (other in players) if (other.color != player.color) {
+                if (other.tokens.any { it.progress in 0..51 && (other.color.start + it.progress) % 52 == target }) score += 1400
             }
         }
         return score
     }
 
     private fun reset() {
-        removeCallbacks(null)
         players.forEach { player -> player.tokens.forEach { it.progress = -1 } }
         turn = 0
         dice = 0
