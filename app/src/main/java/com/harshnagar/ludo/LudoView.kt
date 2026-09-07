@@ -3,92 +3,300 @@ package com.harshnagar.ludo
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Shader
 import android.graphics.Typeface
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.cos
 import kotlin.math.min
-import kotlin.math.sin
 import kotlin.random.Random
 
 class LudoView(context: Context, private val playerNames: List<String>) : View(context) {
-    private enum class PlayerColor(val main: Int, val start: Int) {
-        GREEN(Color.rgb(16,170,94),39), YELLOW(Color.rgb(255,198,20),0),
-        BLUE(Color.rgb(24,143,224),13), RED(Color.rgb(242,48,55),26)
+    private enum class P(val color: Int, val start: Int) {
+        GREEN(Color.rgb(16, 170, 94), 39),
+        YELLOW(Color.rgb(255, 198, 20), 0),
+        BLUE(Color.rgb(24, 143, 224), 13),
+        RED(Color.rgb(242, 48, 55), 26)
     }
-    private enum class State { WAIT_ROLL, SELECT_TOKEN, MOVING, GAME_OVER }
-    private data class Token(var progress:Int=-1)
-    private data class Player(val color:PlayerColor,val tokens:MutableList<Token> = MutableList(4){Token()})
+    private data class Token(var progress: Int = -1)
+    private data class Player(val p: P, val tokens: MutableList<Token> = MutableList(4) { Token() })
+    private enum class State { ROLL, SELECT, MOVING, WON }
 
-    private val players=PlayerColor.values().map{Player(it)}
-    private val names=(0..3).map{i -> playerNames.getOrNull(i)?.takeIf{it.isNotBlank()} ?: "Player ${i+1}"}
-    private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
-    private val text=Paint(Paint.ANTI_ALIAS_FLAG).apply{typeface=Typeface.create("sans",Typeface.BOLD)}
-    private var turn=0; private var dice=0; private var state=State.WAIT_ROLL; private var winner=-1
-    private var message="${names[0]} • Roll the dice"; private var boardLeft=0f; private var boardTop=0f
-    private var boardSize=0f; private var cell=0f; private var controlsTop=0f; private var movingToken=-1; private var moveTarget=-1
-    private var celebrationStart=0L
+    private val players = P.values().map { Player(it) }
+    private val names = (0..3).map { i -> playerNames.getOrNull(i)?.takeIf { it.isNotBlank() } ?: "Player ${i + 1}" }
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.DEFAULT_BOLD }
+    private var turn = 0
+    private var dice = 0
+    private var state = State.ROLL
+    private var winner = -1
+    private var board = 0f
+    private var left = 0f
+    private var top = 0f
+    private var cell = 0f
+    private var controlY = 0f
+    private var moving = -1
+    private var target = -1
+    private var celebrationAt = 0L
 
-    private val route=arrayOf(
-        intArrayOf(6,1),intArrayOf(6,2),intArrayOf(6,3),intArrayOf(6,4),intArrayOf(6,5),intArrayOf(5,6),intArrayOf(4,6),intArrayOf(3,6),intArrayOf(2,6),intArrayOf(1,6),intArrayOf(0,6),
-        intArrayOf(0,7),intArrayOf(0,8),intArrayOf(1,8),intArrayOf(2,8),intArrayOf(3,8),intArrayOf(4,8),intArrayOf(5,8),intArrayOf(6,9),intArrayOf(6,10),intArrayOf(6,11),intArrayOf(6,12),intArrayOf(6,13),intArrayOf(6,14),
-        intArrayOf(7,14),intArrayOf(8,14),intArrayOf(8,13),intArrayOf(8,12),intArrayOf(8,11),intArrayOf(8,10),intArrayOf(8,9),intArrayOf(9,8),intArrayOf(10,8),intArrayOf(11,8),intArrayOf(12,8),intArrayOf(13,8),intArrayOf(14,8),
-        intArrayOf(14,7),intArrayOf(14,6),intArrayOf(13,6),intArrayOf(12,6),intArrayOf(11,6),intArrayOf(10,6),intArrayOf(9,6),intArrayOf(8,5),intArrayOf(8,4),intArrayOf(8,3),intArrayOf(8,2),intArrayOf(8,1),intArrayOf(8,0),intArrayOf(7,0),intArrayOf(6,0))
-    private val safe=setOf(0,8,13,21,26,34,39,47)
+    private val route = arrayOf(
+        intArrayOf(6,1), intArrayOf(6,2), intArrayOf(6,3), intArrayOf(6,4), intArrayOf(6,5), intArrayOf(5,6), intArrayOf(4,6), intArrayOf(3,6), intArrayOf(2,6), intArrayOf(1,6), intArrayOf(0,6),
+        intArrayOf(0,7), intArrayOf(0,8), intArrayOf(1,8), intArrayOf(2,8), intArrayOf(3,8), intArrayOf(4,8), intArrayOf(5,8), intArrayOf(6,9), intArrayOf(6,10), intArrayOf(6,11), intArrayOf(6,12), intArrayOf(6,13), intArrayOf(6,14),
+        intArrayOf(7,14), intArrayOf(8,14), intArrayOf(8,13), intArrayOf(8,12), intArrayOf(8,11), intArrayOf(8,10), intArrayOf(8,9), intArrayOf(9,8), intArrayOf(10,8), intArrayOf(11,8), intArrayOf(12,8), intArrayOf(13,8), intArrayOf(14,8),
+        intArrayOf(14,7), intArrayOf(14,6), intArrayOf(13,6), intArrayOf(12,6), intArrayOf(11,6), intArrayOf(10,6), intArrayOf(9,6), intArrayOf(8,5), intArrayOf(8,4), intArrayOf(8,3), intArrayOf(8,2), intArrayOf(8,1), intArrayOf(8,0), intArrayOf(7,0), intArrayOf(6,0)
+    )
+    private val safe = setOf(0, 8, 13, 21, 26, 34, 39, 47)
 
-    init{setLayerType(View.LAYER_TYPE_SOFTWARE,null);reset()}
+    init { reset() }
 
-    override fun onDraw(c:Canvas){
-        val w=width.toFloat(); val h=height.toFloat(); boardSize=min(w*.94f,h*.58f); boardLeft=(w-boardSize)/2f; boardTop=h*.125f; cell=boardSize/15f; controlsTop=min(boardTop+boardSize+26f,h-190f)
-        drawBackground(c,w,h); drawHeader(c,w); drawPanels(c,w); drawBoard(c); drawControls(c,w,h); if(state==State.GAME_OVER) drawCelebration(c,w,h)
-        if(state==State.GAME_OVER){postInvalidateDelayed(35L)}
-    }
-    private fun drawBackground(c:Canvas,w:Float,h:Float){paint.shader=LinearGradient(0f,0f,0f,h,Color.rgb(7,70,132),Color.rgb(2,25,58),Shader.TileMode.CLAMP);c.drawRect(0f,0f,w,h,paint);paint.shader=null}
-    private fun drawHeader(c:Canvas,w:Float){text.textAlign=Paint.Align.CENTER;text.textSize=w*.045f;text.color=Color.WHITE;c.drawText("LUDO CLASSIC",w/2f,w*.07f,text);text.textSize=w*.025f;text.color=Color.rgb(180,215,245);c.drawText("HARSH NAGAR • 4 PLAYER OFFLINE",w/2f,w*.105f,text)}
-    private fun drawPanels(c:Canvas,w:Float){val top=boardTop-48f;drawPanel(c,12f,top,w*.47f,0);drawPanel(c,w*.53f,top,w-12f,1)}
-    private fun drawPanel(c:Canvas,l:Float,t:Float,r:Float,i:Int){val p=players[i];paint.color=Color.argb(55,0,0,0);c.drawRoundRect(l,t+4,r,t+52,16f,16f,paint);paint.color=p.color.main;c.drawRoundRect(l,t,r,t+48,16f,16f,paint);paint.color=Color.WHITE;c.drawCircle(l+22,t+24,12f,paint);paint.color=p.color.main;c.drawCircle(l+22,t+24,8f,paint);text.textAlign=Paint.Align.LEFT;text.textSize=12f;text.color=Color.WHITE;c.drawText(names[i],l+40,t+29,text)}
-
-    private fun drawBoard(c:Canvas){paint.color=Color.argb(55,0,0,0);c.drawRoundRect(boardLeft+4,boardTop+6,boardLeft+boardSize+4,boardTop+boardSize+6,10f,10f,paint);paint.color=Color.WHITE;c.drawRect(boardLeft,boardTop,boardLeft+boardSize,boardTop+boardSize,paint)
-        drawHome(c,0,0,PlayerColor.YELLOW);drawHome(c,9,0,PlayerColor.BLUE);drawHome(c,0,9,PlayerColor.GREEN);drawHome(c,9,9,PlayerColor.RED)
-        drawLane(c,PlayerColor.YELLOW,6,1,1,5);drawLane(c,PlayerColor.BLUE,9,6,5,1);drawLane(c,PlayerColor.RED,8,9,1,5);drawLane(c,PlayerColor.GREEN,1,8,5,1)
-        paint.style=Paint.Style.STROKE;paint.strokeWidth=maxOf(1f,cell*.012f);paint.color=Color.rgb(185,190,198);for(r in 0..14)for(col in 0..14)c.drawRect(boardLeft+col*cell,boardTop+r*cell,boardLeft+(col+1)*cell,boardTop+(r+1)*cell,paint);paint.style=Paint.Style.FILL
-        val cx=boardLeft+7.5f*cell;val cy=boardTop+7.5f*cell;triangle(c,cx,cy,6f,6f,9f,6f,PlayerColor.YELLOW.main);triangle(c,cx,cy,9f,6f,9f,9f,PlayerColor.RED.main);triangle(c,cx,cy,9f,9f,6f,9f,PlayerColor.GREEN.main);triangle(c,cx,cy,6f,9f,6f,6f,PlayerColor.BLUE.main)
-        for(i in safe){val q=route[i];drawStar(c,boardLeft+(q[1]+.5f)*cell,boardTop+(q[0]+.5f)*cell,cell*.18f)};drawTokens(c)
-    }
-    private fun drawHome(c:Canvas,col:Int,row:Int,color:PlayerColor){paint.color=color.main;c.drawRect(boardLeft+col*cell,boardTop+row*cell,boardLeft+(col+6)*cell,boardTop+(row+6)*cell,paint);paint.color=Color.WHITE;c.drawRoundRect(boardLeft+(col+.95f)*cell,boardTop+(row+.95f)*cell,boardLeft+(col+5.05f)*cell,boardTop+(row+5.05f)*cell,cell*.28f,cell*.28f,paint)}
-    private fun drawLane(c:Canvas,color:PlayerColor,col:Int,row:Int,w:Int,h:Int){paint.color=color.main;c.drawRect(boardLeft+col*cell,boardTop+row*cell,boardLeft+(col+w)*cell,boardTop+(row+h)*cell,paint)}
-    private fun triangle(c:Canvas,cx:Float,cy:Float,x1:Float,y1:Float,x2:Float,y2:Float,color:Int){val p=Path();p.moveTo(cx,cy);p.lineTo(boardLeft+x1*cell,boardTop+y1*cell);p.lineTo(boardLeft+x2*cell,boardTop+y2*cell);p.close();paint.color=color;c.drawPath(p,paint)}
-    private fun drawStar(c:Canvas,x:Float,y:Float,r:Float){val p=Path();for(i in 0..9){val a=-Math.PI/2+i*Math.PI/5;val rr=if(i%2==0)r:r*.42f;val px=x+cos(a).toFloat()*rr;val py=y+sin(a).toFloat()*rr;if(i==0)p.moveTo(px,py)else p.lineTo(px,py)};p.close();paint.color=Color.rgb(105,110,118);paint.style=Paint.Style.STROKE;paint.strokeWidth=2f;c.drawPath(p,paint);paint.style=Paint.Style.FILL}
-
-    private fun drawTokens(c:Canvas){for(pi in players.indices)for(ti in 0..3){val q=tokenPoint(pi,players[pi].tokens[ti].progress,ti)?:continue;drawToken(c,q.first,q.second,pi,ti)}}
-    private fun tokenPoint(pi:Int,progress:Int,index:Int):Pair<Float,Float>?{val color=players[pi].color;if(progress<0){val base=when(color){PlayerColor.YELLOW->0 to 0;PlayerColor.BLUE->9 to 0;PlayerColor.GREEN->0 to 9;PlayerColor.RED->9 to 9};val spots=arrayOf(1.7f to 1.7f,4.3f to 1.7f,1.7f to 4.3f,4.3f to 4.3f);val s=spots[index];return boardLeft+(base.first+s.first)*cell to boardTop+(base.second+s.second)*cell};if(progress<=51){val q=route[(color.start+progress)%52];return boardLeft+(q[1]+.5f)*cell to boardTop+(q[0]+.5f)*cell};val n=progress-52;return when(color){PlayerColor.YELLOW->boardLeft+6.5f*cell to boardTop+(5.5f-n)*cell;PlayerColor.BLUE->boardLeft+(8.5f+n)*cell to boardTop+6.5f*cell;PlayerColor.RED->boardLeft+8.5f*cell to boardTop+(8.5f+n)*cell;PlayerColor.GREEN->boardLeft+(5.5f-n)*cell to boardTop+8.5f*cell}}
-    private fun drawToken(c:Canvas,x:Float,y:Float,pi:Int,index:Int){val p=players[pi];val selectable=state==State.SELECT_TOKEN&&turn==pi&&canMove(index,dice);paint.color=Color.argb(65,0,0,0);c.drawCircle(x+2,y+4,cell*.35f,paint);paint.color=Color.WHITE;c.drawCircle(x,y,cell*.31f,paint);paint.color=p.color.main;c.drawCircle(x,y,cell*.245f,paint);paint.color=Color.WHITE;c.drawCircle(x,y-cell*.08f,cell*.065f,paint);if(selectable||state==State.MOVING&&turn==pi&&index==movingToken){paint.style=Paint.Style.STROKE;paint.strokeWidth=maxOf(2f,cell*.035f);paint.color=Color.WHITE;c.drawCircle(x,y,cell*.4f,paint);paint.style=Paint.Style.FILL}}
-
-    private fun drawControls(c:Canvas,w:Float,h:Float){val ph=min(74f,h*.065f);val y=controlsTop;val left=14f;val right=w-14f;val dl=w*.43f;val br=w*.70f;paint.color=players[turn].color.main;c.drawRoundRect(left,y,w*.39f,y+ph,16f,16f,paint);text.textAlign=Paint.Align.LEFT;text.textSize=12f;text.color=Color.WHITE;c.drawText(names[turn],left+16,y+25,text);text.textSize=10f;c.drawText(if(state==State.WAIT_ROLL)"Your turn" else "Choose a token",left+16,y+48,text);paint.color=Color.WHITE;c.drawRoundRect(dl,y,w*.67f,y+ph,16f,16f,paint);drawDice(c,(dl+w*.67f)/2,y+ph/2,dice);paint.color=if(state==State.WAIT_ROLL)Color.rgb(17,119,214)else Color.rgb(95,113,130);c.drawRoundRect(br,y,right,y+ph,16f,16f,paint);text.textAlign=Paint.Align.CENTER;text.textSize=12f;c.drawText(if(state==State.WAIT_ROLL)"ROLL DICE" else if(state==State.GAME_OVER)"PLAY AGAIN" else "SELECT TOKEN",(br+right)/2,y+ph*.61f,text);if(state!=State.GAME_OVER){text.textSize=11f;c.drawText(message,w/2,y+ph+27,text)}}
-    private fun drawDice(c:Canvas,x:Float,y:Float,v:Int){val s=min(cell*.72f,50f);paint.color=Color.WHITE;c.drawRoundRect(x-s/2,y-s/2,x+s/2,y+s/2,10f,10f,paint);if(v !in 1..6)return;paint.color=Color.rgb(40,50,60);val d=s*.25f;val r=s*.075f;val dots=when(v){1->arrayOf(0 to 0);2->arrayOf(-1 to -1,1 to 1);3->arrayOf(-1 to -1,0 to 0,1 to 1);4->arrayOf(-1 to -1,1 to -1,-1 to 1,1 to 1);5->arrayOf(-1 to -1,1 to -1,0 to 0,-1 to 1,1 to 1);else->arrayOf(-1 to -1,1 to -1,-1 to 0,1 to 0,-1 to 1,1 to 1)};for((dx,dy)in dots)c.drawCircle(x+dx*d,y+dy*d,r,paint)}
-
-    private fun drawCelebration(c:Canvas,w:Float,h:Float){paint.color=Color.argb(215,0,5,20);c.drawRect(0f,0f,w,h,paint);val elapsed=(System.currentTimeMillis()-celebrationStart)/1000f
-        for(i in 0 until 42){val seed=i*37;val x=((seed*13)%1000)/1000f*w;val fall=((elapsed*(35+(i%5)*12)+seed)%1400)/1000f*h;val y=(fall-.15f*h)%h;paint.color=when(i%4){0->Color.rgb(255,198,20);1->Color.rgb(16,170,94);2->Color.rgb(24,143,224);else->Color.rgb(242,48,55)};c.save();c.rotate(((i*29+elapsed*80)%360),x,y);c.drawRect(x-3,y-7,x+3,y+7,paint);c.restore()}
-        val l=w*.08f;val r=w*.92f;val t=h*.23f;val b=h*.72f;paint.color=Color.WHITE;c.drawRoundRect(l,t,r,b,30f,30f,paint);paint.color=players[winner].color.main;c.drawRoundRect(l,t,r,t+20,30f,30f,paint)
-        paint.color=Color.rgb(255,196,25);val cx=w/2;val crownY=t+76;val cp=Path();cp.moveTo(cx-58,crownY+10);cp.lineTo(cx-45,crownY-25);cp.lineTo(cx-18,crownY-2);cp.lineTo(cx,crownY-37);cp.lineTo(cx+18,crownY-2);cp.lineTo(cx+45,crownY-25);cp.lineTo(cx+58,crownY+10);cp.close();c.drawPath(cp,paint);c.drawRoundRect(cx-58,crownY+5,cx+58,crownY+20,5f,5f,paint)
-        text.textAlign=Paint.Align.CENTER;text.textSize=min(w*.075f,38f);text.color=players[winner].color.main;c.drawText("WINNER!",cx,t+170,text);text.textSize=min(w*.06f,31f);text.color=Color.rgb(35,45,55);c.drawText(names[winner],cx,t+212,text);text.textSize=15f;text.color=Color.DKGRAY;c.drawText("What a game! 🎉",cx,t+242,text)
-        paint.color=players[winner].color.main;c.drawCircle(cx,b-82,34f,paint);paint.color=Color.WHITE;c.drawCircle(cx,b-91,8f,paint);c.drawRoundRect(cx-15,b-84,cx+15,b-57,8f,8f,paint)
-        paint.color=Color.rgb(17,119,214);c.drawRoundRect(w*.22f,b-48,w*.78f,b-2,16f,16f,paint);text.textSize=14f;text.color=Color.WHITE;c.drawText("PLAY AGAIN",cx,b-19,text)
+    override fun onDraw(c: Canvas) {
+        val w = width.toFloat()
+        val h = height.toFloat()
+        board = min(w * 0.94f, h * 0.58f)
+        left = (w - board) / 2f
+        top = h * 0.125f
+        cell = board / 15f
+        controlY = min(top + board + 26f, h - 175f)
+        paint.color = Color.rgb(4, 35, 75)
+        c.drawRect(0f, 0f, w, h, paint)
+        drawText(c, "LUDO CLASSIC", w / 2f, h * 0.055f, w * 0.045f, Color.WHITE, Paint.Align.CENTER)
+        drawText(c, "HARSH NAGAR • 4 PLAYER OFFLINE", w / 2f, h * 0.095f, w * 0.024f, Color.rgb(185, 215, 240), Paint.Align.CENTER)
+        drawBoard(c)
+        drawControls(c, w, h)
+        if (state == State.WON) drawWinner(c, w, h)
     }
 
-    override fun onTouchEvent(e:MotionEvent):Boolean{if(e.action!=MotionEvent.ACTION_UP)return true;val x=e.x;val y=e.y;if(state==State.GAME_OVER){if(y>height*.65f){reset();invalidate()}return true};if(turn<0||state==State.MOVING)return true;val dl=width*.43f;val dr=width*.67f;if(state==State.WAIT_ROLL&&x in dl..dr&&y in controlsTop..controlsTop+100){rollDice();return true};if(state==State.SELECT_TOKEN){for(i in 0..3){val q=tokenPoint(turn,players[turn].tokens[i].progress,i)?:continue;val dx=x-q.first;val dy=y-q.second;if(dx*dx+dy*dy<=cell*cell*.95f&&canMove(i,dice)){startMove(turn,i);return true}}};return true}
-    private fun rollDice(){if(state!=State.WAIT_ROLL)return;dice=Random.nextInt(1,7);val legal=legalMoves();if(legal.isEmpty()){message="No legal move • Turn passes";state=State.SELECT_TOKEN;invalidate();postDelayed({if(state==State.SELECT_TOKEN)finishTurn()},700)}else{state=State.SELECT_TOKEN;message=if(dice==6)"You rolled 6 • Choose a token" else "Choose a highlighted token";invalidate()}}
-    private fun legalMoves()=(0..3).filter{canMove(it,dice)}
-    private fun canMove(i:Int,d:Int):Boolean{if(d !in 1..6)return false;val t=players[turn].tokens[i];if(t.progress==56)return false;if(t.progress<0)return d==6;if(t.progress+d>56)return false;return !blocked(players[turn].color,t.progress,d)}
-    private fun blocked(color:PlayerColor,progress:Int,d:Int):Boolean{if(progress !in 0..51||progress+d>51)return false;val target=(color.start+progress+d)%52;return players.any{p->p.color!=color&&p.tokens.count{it.progress in 0..51&&(p.color.start+it.progress)%52==target}>=2}}
-    private fun startMove(pi:Int,ti:Int){if(state!=State.SELECT_TOKEN||pi!=turn||!canMove(ti,dice))return;movingToken=ti;moveTarget=if(players[pi].tokens[ti].progress<0)0 else players[pi].tokens[ti].progress+dice;state=State.MOVING;message="Moving…";animateStep(pi,ti)}
-    private fun animateStep(pi:Int,ti:Int){if(state!=State.MOVING||pi!=turn)return;val t=players[pi].tokens[ti];t.progress=if(t.progress<0)0 else t.progress+1;invalidate();if(t.progress>=moveTarget)postDelayed({completeMove(pi,ti)},85)else postDelayed({animateStep(pi,ti)},95)}
-    private fun completeMove(pi:Int,ti:Int){if(state!=State.MOVING||pi!=turn)return;val p=players[pi];capture(p,p.tokens[ti]);movingToken=-1;moveTarget=-1;if(p.tokens.all{it.progress==56}){winner=pi;state=State.GAME_OVER;dice=0;celebrationStart=System.currentTimeMillis();message="${names[pi]} wins!";invalidate();return};val six=dice==6;dice=0;if(six){state=State.WAIT_ROLL;message="Six! ${names[turn]} rolls again"}else finishTurn();invalidate()}
-    private fun capture(p:Player,t:Token){if(t.progress !in 0..51)return;val target=(p.color.start+t.progress)%52;if(target in safe)return;for(o in players)if(o.color!=p.color)for(x in o.tokens)if(x.progress in 0..51&&(o.color.start+x.progress)%52==target)x.progress=-1}
-    private fun finishTurn(){if(state==State.GAME_OVER)return;dice=0;movingToken=-1;moveTarget=-1;turn=(turn+1)%4;state=State.WAIT_ROLL;message="${names[turn]} • Pass the phone and roll";invalidate()}
-    private fun reset(){players.forEach{p->p.tokens.forEach{it.progress=-1}};turn=0;dice=0;state=State.WAIT_ROLL;winner=-1;movingToken=-1;moveTarget=-1;message="${names[0]} • Roll the dice"}
+    private fun drawBoard(c: Canvas) {
+        paint.color = Color.WHITE
+        c.drawRect(left, top, left + board, top + board, paint)
+        home(c, 0, 0, P.YELLOW)
+        home(c, 9, 0, P.BLUE)
+        home(c, 0, 9, P.GREEN)
+        home(c, 9, 9, P.RED)
+        lane(c, P.YELLOW, 6, 1, 1, 5)
+        lane(c, P.BLUE, 9, 6, 5, 1)
+        lane(c, P.RED, 8, 9, 1, 5)
+        lane(c, P.GREEN, 1, 8, 5, 1)
+        paint.color = Color.LTGRAY
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 1f
+        for (r in 0..14) for (col in 0..14) c.drawRect(left + col * cell, top + r * cell, left + (col + 1) * cell, top + (r + 1) * cell, paint)
+        paint.style = Paint.Style.FILL
+        drawTokens(c)
+    }
+
+    private fun home(c: Canvas, col: Int, row: Int, p: P) {
+        paint.color = p.color
+        c.drawRect(left + col * cell, top + row * cell, left + (col + 6) * cell, top + (row + 6) * cell, paint)
+        paint.color = Color.WHITE
+        c.drawRoundRect(left + (col + 1) * cell, top + (row + 1) * cell, left + (col + 5) * cell, top + (row + 5) * cell, cell * .25f, cell * .25f, paint)
+    }
+
+    private fun lane(c: Canvas, p: P, col: Int, row: Int, cw: Int, rh: Int) {
+        paint.color = p.color
+        c.drawRect(left + col * cell, top + row * cell, left + (col + cw) * cell, top + (row + rh) * cell, paint)
+    }
+
+    private fun drawTokens(c: Canvas) {
+        for (pi in players.indices) for (ti in 0..3) {
+            val pos = point(pi, players[pi].tokens[ti].progress, ti)
+            paint.color = Color.WHITE
+            c.drawCircle(pos.first, pos.second, cell * .30f, paint)
+            paint.color = players[pi].p.color
+            c.drawCircle(pos.first, pos.second, cell * .22f, paint)
+            if (state == State.SELECT && pi == turn && canMove(ti, dice)) {
+                paint.style = Paint.Style.STROKE
+                paint.strokeWidth = 3f
+                paint.color = Color.WHITE
+                c.drawCircle(pos.first, pos.second, cell * .38f, paint)
+                paint.style = Paint.Style.FILL
+            }
+        }
+    }
+
+    private fun point(pi: Int, progress: Int, index: Int): Pair<Float, Float> {
+        val p = players[pi].p
+        if (progress < 0) {
+            val bx = if (p == P.BLUE || p == P.RED) 9f else 0f
+            val by = if (p == P.GREEN || p == P.RED) 9f else 0f
+            val spots = arrayOf(1.7f to 1.7f, 4.3f to 1.7f, 1.7f to 4.3f, 4.3f to 4.3f)
+            return left + (bx + spots[index].first) * cell to top + (by + spots[index].second) * cell
+        }
+        if (progress <= 51) {
+            val q = route[(p.start + progress) % 52]
+            return left + (q[1] + .5f) * cell to top + (q[0] + .5f) * cell
+        }
+        val n = progress - 52
+        return when (p) {
+            P.YELLOW -> left + 6.5f * cell to top + (5.5f - n) * cell
+            P.BLUE -> left + (8.5f + n) * cell to top + 6.5f * cell
+            P.RED -> left + 8.5f * cell to top + (8.5f + n) * cell
+            P.GREEN -> left + (5.5f - n) * cell to top + 8.5f * cell
+        }
+    }
+
+    private fun drawControls(c: Canvas, w: Float, h: Float) {
+        paint.color = players[turn].p.color
+        c.drawRoundRect(14f, controlY, w * .39f, controlY + 68f, 14f, 14f, paint)
+        drawText(c, names[turn], 28f, controlY + 27f, 13f, Color.WHITE, Paint.Align.LEFT)
+        drawText(c, if (state == State.ROLL) "Roll the dice" else "Choose a token", 28f, controlY + 49f, 10f, Color.WHITE, Paint.Align.LEFT)
+        paint.color = Color.WHITE
+        c.drawRoundRect(w * .43f, controlY, w * .67f, controlY + 68f, 14f, 14f, paint)
+        drawDice(c, w * .55f, controlY + 34f, dice)
+        paint.color = if (state == State.ROLL) Color.rgb(17, 119, 214) else Color.rgb(95, 110, 125)
+        c.drawRoundRect(w * .70f, controlY, w - 14f, controlY + 68f, 14f, 14f, paint)
+        drawText(c, if (state == State.ROLL) "ROLL DICE" else "SELECT TOKEN", w * .85f, controlY + 41f, 12f, Color.WHITE, Paint.Align.CENTER)
+    }
+
+    private fun drawDice(c: Canvas, x: Float, y: Float, value: Int) {
+        if (value !in 1..6) return
+        paint.color = Color.rgb(35, 45, 55)
+        c.drawCircle(x, y, 6f, paint)
+        if (value % 2 == 0) { c.drawCircle(x - 12, y - 12, 4f, paint); c.drawCircle(x + 12, y + 12, 4f, paint) }
+        if (value >= 3) { c.drawCircle(x - 12, y + 12, 4f, paint); c.drawCircle(x + 12, y - 12, 4f, paint) }
+        if (value == 6) { c.drawCircle(x - 12, y, 4f, paint); c.drawCircle(x + 12, y, 4f, paint) }
+    }
+
+    private fun drawWinner(c: Canvas, w: Float, h: Float) {
+        paint.color = Color.argb(225, 0, 5, 20)
+        c.drawRect(0f, 0f, w, h, paint)
+        val l = w * .08f
+        val r = w * .92f
+        val t = h * .22f
+        val b = h * .75f
+        paint.color = Color.WHITE
+        c.drawRoundRect(l, t, r, b, 28f, 28f, paint)
+        paint.color = players[winner].p.color
+        c.drawRoundRect(l, t, r, t + 18f, 28f, 28f, paint)
+        val cx = w / 2f
+        val crown = Path()
+        crown.moveTo(cx - 50f, t + 90f)
+        crown.lineTo(cx - 38f, t + 48f)
+        crown.lineTo(cx - 15f, t + 72f)
+        crown.lineTo(cx, t + 38f)
+        crown.lineTo(cx + 15f, t + 72f)
+        crown.lineTo(cx + 38f, t + 48f)
+        crown.lineTo(cx + 50f, t + 90f)
+        crown.close()
+        paint.color = Color.rgb(255, 195, 20)
+        c.drawPath(crown, paint)
+        drawText(c, "WINNER!", cx, t + 170f, min(w * .075f, 38f), players[winner].p.color, Paint.Align.CENTER)
+        drawText(c, names[winner], cx, t + 215f, min(w * .06f, 30f), Color.DKGRAY, Paint.Align.CENTER)
+        drawText(c, "What a game! 🎉", cx, t + 247f, 16f, Color.DKGRAY, Paint.Align.CENTER)
+        paint.color = players[winner].p.color
+        c.drawRoundRect(w * .22f, b - 52f, w * .78f, b - 8f, 14f, 14f, paint)
+        drawText(c, "PLAY AGAIN", cx, b - 23f, 14f, Color.WHITE, Paint.Align.CENTER)
+    }
+
+    private fun drawText(c: Canvas, s: String, x: Float, y: Float, size: Float, color: Int, align: Paint.Align) {
+        text.textSize = size
+        text.color = color
+        text.textAlign = align
+        c.drawText(s, x, y, text)
+    }
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (e.action != MotionEvent.ACTION_UP) return true
+        val x = e.x
+        val y = e.y
+        if (state == State.WON) { reset(); invalidate(); return true }
+        if (state == State.ROLL && x in width * .70f..(width - 14f) && y in controlY..(controlY + 80f)) { roll(); return true }
+        if (state == State.SELECT) for (i in 0..3) {
+            val q = point(turn, players[turn].tokens[i].progress, i)
+            val dx = x - q.first
+            val dy = y - q.second
+            if (dx * dx + dy * dy < cell * cell && canMove(i, dice)) { move(turn, i); return true }
+        }
+        return true
+    }
+
+    private fun roll() {
+        dice = Random.nextInt(1, 7)
+        if ((0..3).none { canMove(it, dice) }) {
+            postDelayed({ finishTurn() }, 500)
+        } else {
+            state = State.SELECT
+            invalidate()
+        }
+    }
+
+    private fun canMove(index: Int, d: Int): Boolean {
+        val t = players[turn].tokens[index]
+        if (d !in 1..6 || t.progress == 56) return false
+        if (t.progress < 0) return d == 6
+        if (t.progress + d > 56) return false
+        if (t.progress <= 51 && t.progress + d <= 51) {
+            val targetAbs = (players[turn].p.start + t.progress + d) % 52
+            val blocked = players.any { other ->
+                other.p != players[turn].p && other.tokens.count { it.progress in 0..51 && (other.p.start + it.progress) % 52 == targetAbs } >= 2
+            }
+            if (blocked) return false
+        }
+        return true
+    }
+
+    private fun move(pi: Int, ti: Int) {
+        moving = ti
+        target = if (players[pi].tokens[ti].progress < 0) 0 else players[pi].tokens[ti].progress + dice
+        state = State.MOVING
+        step(pi, ti)
+    }
+
+    private fun step(pi: Int, ti: Int) {
+        if (state != State.MOVING) return
+        val token = players[pi].tokens[ti]
+        token.progress = if (token.progress < 0) 0 else token.progress + 1
+        invalidate()
+        if (token.progress < target) postDelayed({ step(pi, ti) }, 70) else postDelayed({ complete(pi, ti) }, 80)
+    }
+
+    private fun complete(pi: Int, ti: Int) {
+        if (state != State.MOVING) return
+        val player = players[pi]
+        capture(player, player.tokens[ti])
+        moving = -1
+        target = -1
+        if (player.tokens.all { it.progress == 56 }) {
+            winner = pi
+            state = State.WON
+            celebrationAt = System.currentTimeMillis()
+            invalidate()
+            return
+        }
+        val extra = dice == 6
+        dice = 0
+        if (extra) { state = State.ROLL; invalidate() } else finishTurn()
+    }
+
+    private fun capture(player: Player, token: Token) {
+        if (token.progress !in 0..51) return
+        val absolute = (player.p.start + token.progress) % 52
+        if (absolute in safe) return
+        players.filter { it.p != player.p }.forEach { other ->
+            other.tokens.forEach { enemy ->
+                if (enemy.progress in 0..51 && (other.p.start + enemy.progress) % 52 == absolute) enemy.progress = -1
+            }
+        }
+    }
+
+    private fun finishTurn() {
+        if (state == State.WON) return
+        dice = 0
+        moving = -1
+        target = -1
+        turn = (turn + 1) % 4
+        state = State.ROLL
+        invalidate()
+    }
+
+    private fun reset() {
+        players.forEach { it.tokens.forEach { token -> token.progress = -1 } }
+        turn = 0
+        dice = 0
+        state = State.ROLL
+        winner = -1
+        moving = -1
+        target = -1
+        celebrationAt = 0L
+    }
 }
