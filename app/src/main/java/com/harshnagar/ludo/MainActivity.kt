@@ -19,6 +19,8 @@ class MainActivity : Activity() {
     private val fields = ArrayList<EditText>()
     private var playerCount = 4
 
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density + 0.5f).toInt()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -27,76 +29,147 @@ class MainActivity : Activity() {
 
     private fun showMenu() {
         fields.clear()
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(24, 42, 24, 24)
-            setBackgroundColor(Color.rgb(9, 18, 35))
+            setPadding(dp(18), dp(22), dp(18), dp(14))
+            setBackgroundColor(Color.rgb(7, 18, 35))
         }
-        root.addView(label("LUDO", 38f, Color.WHITE), LinearLayout.LayoutParams(-1, 55))
-        root.addView(label("CLASSIC • PASS & PLAY", 13f, Color.rgb(156, 178, 208)), LinearLayout.LayoutParams(-1, 38))
+
+        root.addView(
+            label("LUDO", 32f, Color.WHITE),
+            LinearLayout.LayoutParams(-1, dp(46))
+        )
+        root.addView(
+            label("CLASSIC  •  PASS & PLAY", 12f, Color.rgb(157, 180, 211)),
+            LinearLayout.LayoutParams(-1, dp(30))
+        )
+
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply {
+            topMargin = dp(14)
+        })
 
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(22, 20, 22, 18)
+            setPadding(dp(20), dp(18), dp(20), dp(20))
             setBackgroundColor(Color.WHITE)
         }
-        root.addView(card, LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(0, 18, 0, 0) })
+        scroll.addView(card, ScrollView.LayoutParams(-1, -2))
 
-        val title = label("Game setup", 23f, Color.rgb(25, 34, 48))
-        title.gravity = Gravity.LEFT
-        card.addView(title, LinearLayout.LayoutParams(-1, 42))
-        val sub = label("Choose how many people will play on this phone.", 13f, Color.rgb(100, 110, 125))
-        sub.gravity = Gravity.LEFT
-        card.addView(sub, LinearLayout.LayoutParams(-1, 42))
-
-        val selector = RadioGroup(this).apply { orientation = RadioGroup.HORIZONTAL; gravity = Gravity.CENTER }
-        for (n in 2..4) {
-            val rb = RadioButton(this).apply { text = "$n Players"; textSize = 14f; setTextColor(Color.DKGRAY); id = n }
-            selector.addView(rb, RadioGroup.LayoutParams(0, 48, 1f))
+        val title = label("Game Setup", 22f, Color.rgb(24, 35, 50)).apply {
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
         }
-        selector.check(4)
-        selector.setOnCheckedChangeListener { _, id -> playerCount = id; rebuildNames(card, selector) }
-        card.addView(selector)
+        card.addView(title, LinearLayout.LayoutParams(-1, dp(38)))
+
+        val sub = label(
+            "Choose how many people will play on this phone.",
+            13f,
+            Color.rgb(94, 106, 122)
+        ).apply {
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
+        }
+        card.addView(sub, LinearLayout.LayoutParams(-1, dp(34)))
+
+        val selector = RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        for (n in 2..4) {
+            val rb = RadioButton(this).apply {
+                text = "$n Players"
+                textSize = 14f
+                setTextColor(Color.rgb(45, 53, 65))
+                id = n
+                includeFontPadding = false
+                minHeight = 0
+                buttonTintList = android.content.res.ColorStateList.valueOf(Color.rgb(28, 105, 210))
+            }
+            selector.addView(rb, RadioGroup.LayoutParams(0, dp(46), 1f))
+        }
+        selector.check(playerCount)
+        selector.setOnCheckedChangeListener { _, id ->
+            if (id in 2..4) {
+                playerCount = id
+                rebuildNames(card, selector)
+            }
+        }
+        card.addView(selector, LinearLayout.LayoutParams(-1, dp(46)))
         rebuildNames(card, selector)
 
         val start = Button(this).apply {
-            text = "START GAME  →"
-            textSize = 16f
+            text = "START GAME"
+            textSize = 15f
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.WHITE)
-            setBackgroundColor(Color.rgb(28, 105, 210))
+            setAllCaps(false)
+            setBackgroundColor(Color.rgb(25, 105, 215))
+            minHeight = 0
+            stateListAnimator = null
             setOnClickListener { startGame() }
         }
-        root.addView(start, LinearLayout.LayoutParams(-1, 58).apply { setMargins(0, 18, 0, 0) })
-        root.addView(label("100% offline • No account • No internet", 12f, Color.rgb(130, 155, 185)), LinearLayout.LayoutParams(-1, 30))
+        root.addView(
+            start,
+            LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(14) }
+        )
+
+        root.addView(
+            label("100% offline  •  No account  •  No internet", 11f, Color.rgb(132, 157, 187)),
+            LinearLayout.LayoutParams(-1, dp(28))
+        )
+
         setContentView(root)
     }
 
     private fun rebuildNames(card: LinearLayout, selector: RadioGroup) {
         while (card.childCount > 2) card.removeViewAt(2)
-        card.addView(selector, 2)
+        card.addView(selector, 2, LinearLayout.LayoutParams(-1, dp(46)))
         fields.clear()
+
         for (i in 0 until playerCount) {
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            val dot = TextView(this).apply {
-                text = "●"; textSize = 23f; gravity = Gravity.CENTER; setTextColor(colors[i])
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
             }
-            row.addView(dot, LinearLayout.LayoutParams(42, 48))
+
+            val dot = TextView(this).apply {
+                text = "●"
+                textSize = 20f
+                gravity = Gravity.CENTER
+                setTextColor(colors[i])
+                includeFontPadding = false
+            }
+            row.addView(dot, LinearLayout.LayoutParams(dp(34), dp(52)))
+
             val edit = EditText(this).apply {
-                setSingleLine(true); textSize = 16f; hint = defaults[i]
-                setText(prefs.getString("player_$i", defaults[i])); setSelectAllOnFocus(true)
-                setPadding(10, 0, 8, 0)
+                setSingleLine(true)
+                textSize = 16f
+                hint = defaults[i]
+                setText(prefs.getString("player_$i", defaults[i]))
+                setSelectAllOnFocus(true)
+                setTextColor(Color.rgb(32, 39, 49))
+                setHintTextColor(Color.rgb(145, 153, 164))
+                setPadding(dp(8), 0, 0, 0)
+                includeFontPadding = false
             }
             fields.add(edit)
-            row.addView(edit, LinearLayout.LayoutParams(0, 52, 1f))
+            row.addView(edit, LinearLayout.LayoutParams(0, dp(52), 1f))
             card.addView(row)
         }
     }
 
     private fun label(value: String, size: Float, color: Int) = TextView(this).apply {
-        text = value; textSize = size; setTextColor(color); gravity = Gravity.CENTER
+        text = value
+        textSize = size
+        setTextColor(color)
+        gravity = Gravity.CENTER
         setTypeface(null, Typeface.BOLD)
+        includeFontPadding = false
     }
 
     private fun startGame() {
@@ -106,10 +179,14 @@ class MainActivity : Activity() {
             name
         }
         if (names.distinct().size != names.size) {
-            Toast.makeText(this, "Player names must be different", Toast.LENGTH_SHORT).show(); return
+            Toast.makeText(this, "Player names must be different", Toast.LENGTH_SHORT).show()
+            return
         }
         setContentView(LudoView(this, names))
     }
 
-    override fun onBackPressed() { showMenu() }
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        showMenu()
+    }
 }
