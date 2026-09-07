@@ -77,12 +77,10 @@ class LudoView(context: Context, private val playerNames: List<String>) : View(c
     private fun home(c: Canvas, col: Int, row: Int, p: P, pi: Int) {
         paint.color = p.c
         c.drawRect(left+col*cell, top+row*cell, left+(col+6)*cell, top+(row+6)*cell, paint)
-        // Token tray
         paint.color = Color.WHITE
         c.drawRoundRect(left+(col+.45f)*cell, top+(row+.7f)*cell, left+(col+3.75f)*cell, top+(row+5.3f)*cell, cell*.35f, cell*.35f, paint)
         val s = arrayOf(1.35f to 1.7f, 2.85f to 1.7f, 1.35f to 4.25f, 2.85f to 4.25f)
         for (v in s) { paint.color = p.c; c.drawCircle(left+(col+v.first)*cell, top+(row+v.second)*cell, cell*.27f, paint) }
-        // Player-owned dice panel inside the same home
         val dx = left+(col+4.05f)*cell; val dy = top+(row+1.45f)*cell; val dw = 1.5f*cell; val dh = 3.1f*cell
         paint.color = if (pi == turn) Color.WHITE else Color.argb(220,255,255,255)
         c.drawRoundRect(dx, dy, dx+dw, dy+dh, cell*.22f, cell*.22f, paint)
@@ -123,7 +121,8 @@ class LudoView(context: Context, private val playerNames: List<String>) : View(c
 
     private fun position(p:P,pos:Int,i:Int):Pair<Float,Float>{
         if(pos<0){
-            val bx=if(p==P.BLUE||p==P.RED)9f else 0f; val by=if(p==P.RED||p==P.BLUE)9f else 0f
+            val bx=if(p==P.BLUE||p==P.RED)9f else 0f
+            val by=if(p==P.GREEN||p==P.RED)9f else 0f
             val s=arrayOf(1.35f to 1.7f,2.85f to 1.7f,1.35f to 4.25f,2.85f to 4.25f)
             return left+(bx+s[i].first)*cell to top+(by+s[i].second)*cell
         }
