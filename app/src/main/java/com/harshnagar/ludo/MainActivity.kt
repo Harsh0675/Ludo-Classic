@@ -29,48 +29,33 @@ class MainActivity : Activity() {
 
     private fun showMenu() {
         fields.clear()
-
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(18), dp(22), dp(18), dp(14))
             setBackgroundColor(Color.rgb(7, 18, 35))
         }
-
-        root.addView(
-            label("LUDO", 32f, Color.WHITE),
-            LinearLayout.LayoutParams(-1, dp(46))
-        )
-        root.addView(
-            label("CLASSIC  •  PASS & PLAY", 12f, Color.rgb(157, 180, 211)),
-            LinearLayout.LayoutParams(-1, dp(30))
-        )
+        root.addView(label("LUDO", 32f, Color.WHITE), LinearLayout.LayoutParams(-1, dp(46)))
+        root.addView(label("CLASSIC  •  PASS & PLAY", 12f, Color.rgb(157, 180, 211)), LinearLayout.LayoutParams(-1, dp(30)))
 
         val scroll = ScrollView(this).apply {
             isFillViewport = true
             overScrollMode = View.OVER_SCROLL_NEVER
         }
-        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply {
-            topMargin = dp(14)
-        })
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(14) })
 
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(20))
             setBackgroundColor(Color.WHITE)
         }
-        scroll.addView(card, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(card, FrameLayout.LayoutParams(-1, -2))
 
         val title = label("Game Setup", 22f, Color.rgb(24, 35, 50)).apply {
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
         }
         card.addView(title, LinearLayout.LayoutParams(-1, dp(38)))
-
-        val sub = label(
-            "Choose how many people will play on this phone.",
-            13f,
-            Color.rgb(94, 106, 122)
-        ).apply {
+        val sub = label("Choose how many people will play on this phone.", 13f, Color.rgb(94, 106, 122)).apply {
             gravity = Gravity.START or Gravity.CENTER_VERTICAL
             setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
         }
@@ -113,16 +98,8 @@ class MainActivity : Activity() {
             stateListAnimator = null
             setOnClickListener { startGame() }
         }
-        root.addView(
-            start,
-            LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(14) }
-        )
-
-        root.addView(
-            label("100% offline  •  No account  •  No internet", 11f, Color.rgb(132, 157, 187)),
-            LinearLayout.LayoutParams(-1, dp(28))
-        )
-
+        root.addView(start, LinearLayout.LayoutParams(-1, dp(54)).apply { topMargin = dp(14) })
+        root.addView(label("100% offline  •  No account  •  No internet", 11f, Color.rgb(132, 157, 187)), LinearLayout.LayoutParams(-1, dp(28)))
         setContentView(root)
     }
 
@@ -130,13 +107,11 @@ class MainActivity : Activity() {
         while (card.childCount > 2) card.removeViewAt(2)
         card.addView(selector, 2, LinearLayout.LayoutParams(-1, dp(46)))
         fields.clear()
-
         for (i in 0 until playerCount) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
             }
-
             val dot = TextView(this).apply {
                 text = "●"
                 textSize = 20f
@@ -145,7 +120,6 @@ class MainActivity : Activity() {
                 includeFontPadding = false
             }
             row.addView(dot, LinearLayout.LayoutParams(dp(34), dp(52)))
-
             val edit = EditText(this).apply {
                 setSingleLine(true)
                 textSize = 16f
